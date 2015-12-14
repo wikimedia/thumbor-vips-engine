@@ -16,6 +16,7 @@ setup(
     platforms='any',
     install_requires=[
         'thumbor',
+        'wikimedia_thumbor_base_engine'
     ],
     extras_require={
         'tests': [

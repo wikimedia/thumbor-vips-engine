@@ -17,14 +17,45 @@ gi.require_version('Vips', '8.0')
 from gi.repository import Vips
 
 from thumbor.engines import BaseEngine
+from wikimedia_thumbor_base_engine import BaseWikimediaEngine
+
+
+BaseWikimediaEngine.add_format(
+    'image/tiff',
+    '.tiff',
+    lambda buffer: (
+        buffer.startswith('II*\x00') or buffer.startswith('MM\x00*')
+    )
+)
 
 
 class Engine(BaseEngine):
     def create_image(self, buffer):
-        return Vips.Image().new_from_buffer(data=buffer, option_string=None)
+        self.original_buffer = buffer
+        option_string = None
+
+        if BaseEngine.get_mimetype(buffer) == 'image/tiff':
+            try:
+                option_string = 'page=%d' % (self.context.request.page - 1)
+            except AttributeError:
+                pass
+
+        img = Vips.Image().new_from_buffer(
+            data=buffer,
+            option_string=option_string
+        )
+
+        return img
 
     def read(self, extension=None, quality=None):
-        return self.image.write_to_buffer(format_string=extension)
+        # Save the potentially multipage original for TIFFs
+        if extension == '.tiff' and quality is None:
+            return self.original_buffer
+
+        if extension in ('.tiff', '.jpg'):
+            return self.image.write_to_buffer('.jpg')
+
+        return self.image.write_to_buffer('.png')
 
     def resize(self, width, height):
         # In the context of thumbnailing we're fine with a resize
@@ -45,10 +76,10 @@ class Engine(BaseEngine):
         )
 
     def should_run(self, extension, buffer):
-        if extension != '.png':
+        if extension not in ('.png', '.tiff'):
             return False
 
-        image = self.create_image(buffer)
+        image = Vips.Image().new_from_buffer(buffer, option_string=None)
         pixels = image.width * image.height
 
         if self.context.config.VIPS_ENGINE_MIN_PIXELS is None:

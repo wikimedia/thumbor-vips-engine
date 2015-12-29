@@ -121,6 +121,11 @@ class Engine(BaseWikimediaEngine):
         result = self.exec_command(command)
         self.extension = extension
 
+        # Pass the true source dimensions through the context, letting filters
+        # like conditional sharpen pick it up
+        self.context.request.source_width = self.context.vips['width']
+        self.context.request.source_height = self.context.vips['height']
+
         return super(Engine, self).create_image(result)
 
     def read(self, extension=None, quality=None):

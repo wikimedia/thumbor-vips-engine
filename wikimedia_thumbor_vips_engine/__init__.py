@@ -13,6 +13,7 @@
 
 import errno
 import os
+import math
 from tempfile import NamedTemporaryFile
 
 from wikimedia_thumbor_base_engine import BaseWikimediaEngine
@@ -102,19 +103,20 @@ class Engine(BaseWikimediaEngine):
 
         self.destination = NamedTemporaryFile(delete=False, suffix=extension)
 
-        resize_factor = (
-            float(self.context.request.width)
-            /
+        shrink_factor = int(math.floor(
             float(self.context.vips['width'])
-        )
+            /
+            float(self.context.request.width)
+        ))
 
         # Send a resized (but not cropped) image to PIL
         command = [
             self.context.config.VIPS_PATH,
-            'resize',
+            'shrink',
             source,
             self.destination.name,
-            "%f" % resize_factor
+            "%d" % shrink_factor,
+            "%d" % shrink_factor
         ]
         result = self.exec_command(command)
         self.extension = extension
